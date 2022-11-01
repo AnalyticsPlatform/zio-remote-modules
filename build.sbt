@@ -1,119 +1,35 @@
 val scala3Version = "3.2.0"
 
-///////////////////////////////////////////////////////
 lazy val `zio-client` = project
   .in(file("."))
   .enablePlugins(JavaAppPackaging)
   .settings(
     run / fork := true,
-    name := "akka-remote-modules-client",
+    name := "zio-remote-modules-client",
     version := "0.1.0-SNAPSHOT",
     scalaVersion := scala3Version,
+    Compile / PB.targets := Seq(
+      scalapb.gen(grpc = true) -> (Compile / sourceManaged).value,
+      scalapb.zio_grpc.ZioCodeGenerator -> (Compile / sourceManaged).value
+    ),
     libraryDependencies ++= {
-      val vAkkaActorClient = "2.6.20"
       val vScallop = "4.1.0"
-      val vIOCirce = "0.14.1"
+      val grpcVersion = "1.47.0"
       Seq(
-        "org.scalameta" %% "munit" % "0.7.29" % Test,
-        "com.typesafe.akka" %% "akka-actor" % vAkkaActorClient,
-        "com.typesafe.akka" %% "akka-remote" % vAkkaActorClient,
-        "io.netty" % "netty" % "3.10.6.Final",
-        "io.circe" %% "circe-parser" % vIOCirce,
-        "io.circe" %% "circe-generic" % vIOCirce,
-        "org.rogach" %% "scallop" % vScallop
+        "org.rogach" %% "scallop" % vScallop,
+        "io.grpc" % "grpc-netty" % grpcVersion,
+        "com.thesamet.scalapb" %% "scalapb-runtime-grpc" % scalapb.compiler.Version.scalapbVersion,
+        "com.typesafe" % "config" % "1.4.2",
+        "org.scalameta" %% "munit" % "0.7.29" % Test
       )
     }
   )
-
-
-///////////////////////////////////////////////////////
 
 lazy val `serverScala2_12` = project
   .in(file("module-scala2_12"))
-  .enablePlugins(JavaAppPackaging)
-  .settings(
-    run / fork := true,
-    name := "module-scala2_12",
-    version := "0.1.0-SNAPSHOT",
-    scalaVersion := "2.12.15",
-
-    libraryDependencies ++= {
-      val vAkkaActorModuleScala2_12 = "2.6.18"
-      val vIOCirce = "0.14.1"
-      val vScallop = "3.4.0"
-      Seq(
-        //      "org.scalameta" %% "munit" % "0.7.29" % Test,
-        "com.typesafe.akka" %% "akka-actor" % vAkkaActorModuleScala2_12,
-        "com.typesafe.akka" %% "akka-remote" % vAkkaActorModuleScala2_12,
-        "io.netty" % "netty" % "3.10.6.Final",
-        "io.circe" %% "circe-parser" % vIOCirce,
-        "io.circe" %% "circe-generic" % vIOCirce,
-        "org.rogach" %% "scallop" % vScallop
-      )
-    }
-  )
-
-
-
-///////////////////////////////////////////////////////
-
-///////////////////////////////////////////////////////
 
 lazy val `serverScala3` = project
   .in(file("module-scala3"))
-  .enablePlugins(JavaAppPackaging)
-  .settings(
-    run / fork := true,
-    name := "module-scala3",
-    version := "0.1.0-SNAPSHOT",
-    scalaVersion := scala3Version,
-
-    libraryDependencies ++= {
-      val vIOCirce = "0.14.1"
-      val vScallop = "4.1.0"
-      val vAkkaActorModuleScala3 = "2.6.20"
-      Seq(
-        //      "org.scalameta" %% "munit" % "0.7.29" % Test,
-        "com.typesafe.akka" %% "akka-actor" % vAkkaActorModuleScala3,
-        "com.typesafe.akka" %% "akka-remote" % vAkkaActorModuleScala3,
-        "io.netty" % "netty" % "3.10.6.Final",
-        "io.circe" %% "circe-parser" % vIOCirce,
-        "io.circe" %% "circe-generic" % vIOCirce,
-        "org.rogach" %% "scallop" % vScallop
-      )
-    }
-  )
-
-///////////////////////////////////////////////////////
-
-///////////////////////////////////////////////////////
-
-lazy val `serverScala2_11` = project
-  .in(file("module-scala2_11"))
-  .enablePlugins(JavaAppPackaging)
-  .settings(
-    run / fork := true,
-    name := "module-scala2_11",
-    version := "0.1.0-SNAPSHOT",
-    scalaVersion := "2.11.12",
-
-    libraryDependencies ++= {
-      val vAkkaActorModuleScala2_11 = "2.5.23"
-      val vIOCirce = "0.12.0-M3"
-      val vScallop = "3.4.0"
-      Seq(
-        //      "org.scalameta" %% "munit" % "0.7.29" % Test,
-        "com.typesafe.akka" %% "akka-actor" % vAkkaActorModuleScala2_11,
-        "com.typesafe.akka" %% "akka-remote" % vAkkaActorModuleScala2_11,
-        "io.netty" % "netty" % "3.10.6.Final",
-        "io.circe" %% "circe-parser" % vIOCirce,
-        "io.circe" %% "circe-generic" % vIOCirce,
-        "org.rogach" %% "scallop" % vScallop
-      )
-    }
-  )
-
-///////////////////////////////////////////////////////
 
 lazy val stageAll = taskKey[Unit]("Stage all projects")
 lazy val prePackArchive = taskKey[Unit]("Prepare project before making tar.gz")
@@ -123,7 +39,7 @@ lazy val makeTarGZ = taskKey[Unit]("Pack target dist tar.gz")
 lazy val runClientApp = taskKey[Unit]("run client app")
 
 val projects_stage = ScopeFilter(inProjects(
-  `zio-client`, `serverScala2_11`, `serverScala2_12`, `serverScala3`), inConfigurations(Universal))
+  `zio-client`,  `serverScala2_12`, `serverScala3`), inConfigurations(Universal))
 
 stageAll := {
   stage.all(projects_stage).value
@@ -138,7 +54,6 @@ prePackArchive := {
   val targetStageDir = (`zio-client` / baseDirectory).value / "target" / "universal" / "stage"
 
   copyStageModule(targetStageDir, (serverScala3 / baseDirectory).value / "target" / "universal" / "stage")
-  copyStageModule(targetStageDir, (`serverScala2_11` / baseDirectory).value / "target" / "universal" / "stage")
   copyStageModule(targetStageDir, (`serverScala2_12` / baseDirectory).value / "target" / "universal" / "stage")
 }
 
