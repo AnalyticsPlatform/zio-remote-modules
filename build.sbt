@@ -31,9 +31,6 @@ lazy val `serverScala2_12` = project
 lazy val `serverScala3` = project
   .in(file("module-scala3"))
 
-lazy val `serverScala2_11` = project
-  .in(file("module-scala2_11"))
-
 lazy val stageAll = taskKey[Unit]("Stage all projects")
 lazy val prePackArchive = taskKey[Unit]("Prepare project before making tar.gz")
 lazy val packArchive = taskKey[Unit]("Making release tar.gz")
@@ -42,7 +39,7 @@ lazy val makeTarGZ = taskKey[Unit]("Pack target dist tar.gz")
 lazy val runClientApp = taskKey[Unit]("run client app")
 
 val projects_stage = ScopeFilter(inProjects(
-  `zio-client`,  `serverScala2_12`, `serverScala3`, `serverScala2_11`), inConfigurations(Universal))
+  `zio-client`,  `serverScala2_12`, `serverScala3`), inConfigurations(Universal))
 
 stageAll := {
   stage.all(projects_stage).value
@@ -57,7 +54,6 @@ prePackArchive := {
   val targetStageDir = (`zio-client` / baseDirectory).value / "target" / "universal" / "stage"
 
   copyStageModule(targetStageDir, (serverScala3 / baseDirectory).value / "target" / "universal" / "stage")
-  copyStageModule(targetStageDir, (`serverScala2_11` / baseDirectory).value / "target" / "universal" / "stage")
   copyStageModule(targetStageDir, (`serverScala2_12` / baseDirectory).value / "target" / "universal" / "stage")
 }
 
