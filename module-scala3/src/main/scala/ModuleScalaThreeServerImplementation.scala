@@ -8,7 +8,8 @@ import zio.ZIO
 
 object ModuleScalaThreeServerImplementation extends ZZioGrpcRemote[Any, Any] {
   def sendShutDown(request: ShutDown): ZIO[Any, Status, ZioMsgTestReply] = {
-    ZIO.done(zio.Exit.Success(ZioMsgTestReply("Started shutdown")))
+    printLine(s"Got request: $request").orDie zipRight //Can we not die here?
+      ZIO.succeed(ZioMsgTestReply(s"Module scala 3: Prepared to shutdown"))
   }
 
   def sendZioMsgTest1(request: app.zio.grpc.remote.clientMsgs.ZioMsgTest1)

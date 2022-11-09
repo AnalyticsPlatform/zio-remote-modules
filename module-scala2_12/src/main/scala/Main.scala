@@ -25,15 +25,14 @@ object ModuleScala2_12 extends zio.ZIOAppDefault {
 
   val myAppLogic = getArgs.flatMap(
     argsZio => parseArgs(argsZio.toList)
-  ).map(
+  ).flatMap(
     a => {
       println("host is " + a._1 + " port is " + a._2)
 
       val builder = ServerBuilder.forPort(a._2.toInt).addService(ProtoReflectionService.newInstance())
       ServerLayer.fromServiceList(builder, services).build
     }
-  ) *> ZIO.never
-
+  ).flatMap(_ => ZIO.never)
   def run = myAppLogic.exitCode
 }
 

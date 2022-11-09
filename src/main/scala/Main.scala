@@ -6,22 +6,11 @@ import io.grpc.ManagedChannelBuilder
 import zio.Console.*
 import scalapb.zio_grpc.ZManagedChannel
 import zio.*
-
 import app.zio.grpc.remote.clientMsgs.*
 
-object ClientApp extends ZIOAppDefault {
-  def parseArgs(args: List[String]): ZIO[Any, Throwable, (String, String)] = {
-    try {
-      import org.rogach.scallop.ScallopConfBase
-      val appArgs = AppArgs(args)
-      val host: String = appArgs.host.toOption.get
-      val port: String = appArgs.port.toOption.get.toInt.toString
-      ZIO.succeed((host, port))
-    } catch {
-      case e: Throwable => ZIO.fail(e)
-    }
-  }
+import java.io.File
 
+object ClientApp extends ZIOAppDefault {
   def clientSendMsgs(prefix: String = "3") =
     for {
       f <- ZioClientMsgs.ZioGrpcRemoteClient.sendZioMsgTest1(ZioMsgTest1("hello", "scala", prefix))
@@ -37,31 +26,55 @@ object ClientApp extends ZIOAppDefault {
       _ <- printLine(r.msg)
     } yield ()
 
-  override def run =
-    for {
-      args <- getArgs
-      clientLayer <- parseArgs(args.toList).map(
-        a => {
-          println("host of server is " + a._1 + " and port is " + a._2)
-          ZioClientMsgs.ZioGrpcRemoteClient.live(
-            ZManagedChannel(
-              ManagedChannelBuilder.forAddress(a._1, a._2.toInt).usePlaintext()
-            )
-          )
-        }
+  def StartModuleServer(moduleName: String, host: String, port: Int,
+                        basePath: File = new File(".")) = {
+    println(s"trying to  start module $moduleName at " + host + " and port at " + port +
+      " in " + basePath.getAbsolutePath
+    )
+    try {
+      ZIO.succeed(
+        CmdOperations.runCmdNoWait(
+          Some(s"$moduleName.bat --port $port --host $host"),
+          Some(s"$moduleName --port $port --host $host"), basePath))
+    } catch {
+      case e: Throwable => ZIO.fail(e)
+    }
+  }
+
+  def startClient(targetHost: String, targetPort: Int, moduleName: String = "") = {
+    if moduleName.isEmpty then
+      println("trying to  start client at " + targetHost + " and port at " + targetPort)
+    else println("trying to  start client at " + targetHost + " and port at " + targetPort +
+      " which will connect to module " + moduleName)
+
+    ZioClientMsgs.ZioGrpcRemoteClient.live(
+      ZManagedChannel(
+        ManagedChannelBuilder.forAddress(targetHost, targetPort).usePlaintext()
       )
-      _ <- clientSendMsgs().provideLayer(clientLayer).exitCode
-    } yield ()
+    ).retry(Schedule.fixed(10.seconds) || Schedule.recurs(5))
+  }
+
+  override def run =
+    (for {
+      port1 <- PortOperations.isPortAvailable(0)
+      processServerScala2_12 <- StartModuleServer("module-scala2_12", "0.0.0.0", port1)
+      port2 <- PortOperations.isPortAvailable(0)
+      processServerScala3 <- StartModuleServer("module-scala3", "0.0.0.0", port2)
+      clientLayer2_12 <- ZIO.succeed(startClient("0.0.0.0", port1, "module-scala2_12"))
+      clientLayer3 <- ZIO.succeed(startClient("0.0.0.0", port2, "module-scala3"))
+      _ <- clientSendMsgs("2_12").provideLayer(clientLayer2_12)
+      _ <- clientSendMsgs("3").provideLayer(clientLayer3)
+      _ <- {
+        if (processServerScala2_12.isAlive()) {
+          processServerScala2_12.destroy()
+        }
+        if (processServerScala3.isAlive()) {
+          processServerScala3.destroy()
+        }
+        ZIO.succeed(0)
+      }
+
+    } yield ()).exitCode
 }
-
-case class AppArgs(arguments: Seq[String]) extends ScallopConf(arguments) {
-
-  import org.rogach.scallop.stringConverter
-
-  val port = opt[String](required = false, default = Some("0"))
-  val host = opt[String](required = false, default = Some("0.0.0.0"))
-  verify()
-}
-
 
 
