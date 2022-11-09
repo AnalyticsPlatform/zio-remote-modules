@@ -10,8 +10,8 @@ package ZioGrpcRemote;
 
 service ZioGrpcRemote {
   rpc SendZioMsgTest1 (ZioMsgTest1) returns (ZioMsgTestReply) {}
-  rpc SendZioMsgTest2Array (ZioMsgTest1) returns (ZioMsgTestReply) {}
-  rpc SendZioMsgTest3Map (ZioMsgTest1) returns (ZioMsgTestReply) {}
+  rpc SendZioMsgTest2Array (ZioMsgTest2Array) returns (ZioMsgTestReply) {}
+  rpc SendZioMsgTest3Map (ZioMsgTest3Map) returns (ZioMsgTestReply) {}
   rpc SendShutDown (ShutDown) returns (ZioMsgTestReply) {} //Can it be without returns?
 }
 

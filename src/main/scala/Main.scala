@@ -10,68 +10,31 @@ import zio.*
 import app.zio.grpc.remote.clientMsgs.*
 
 object ClientApp extends ZIOAppDefault {
-  //
-  //  //
-  //  //  def main(args: Array[String]): Unit =
-  //  //    import org.rogach.scallop.ScallopConfBase
-  //  //
-  //  //    val appArgs = AppArgs(args)
-  //  //    val host: String = appArgs.host.toOption.get
-  //  //    val port: String = PortOperations.isPortAvailable(
-  //  //      appArgs.port.toOption.get.toInt
-  //  //    ).toString
-  //  //
-  //  //    try {
-  //  //      val config = ConfigFactory.load(
-  //  //        ConfigFactory.parseString(
-  //  //          s"""
-  //  //            |akka {
-  //  //            | remote.classic {
-  //  //            |   netty.tcp {
-  //  //            |     hostname = ${host}
-  //  //            |     port = $port
-  //  //            |   }
-  //  //            | }
-  //  //            |}
-  //  //            |""".stripMargin
-  //  //        ).withFallback(ConfigFactory.load())
-  //  //      )
-  //  //      println(s"Starting actor system on $host:$port")
-  //  //      val system: ActorSystem = ActorSystem("client-akka", config)
-  //  //      system.actorOf(RunMainActor.props(), "RunMainActor") ! StartWork()
-  //  //    } catch {
-  //  //      case ex: Exception => println("ClientApp error: " + ex.getMessage)
-  //  //    }
-  //
-  //  def myAppLogic =
-  //    for {
-  //      r <- ZioGrpcRemoteClient.sendZioMsgTest1(Zio)
-  //      _ <- printLine(r.message)
-  //    } yield ()
-
   def parseArgs(args: List[String]): ZIO[Any, Throwable, (String, String)] = {
     try {
       import org.rogach.scallop.ScallopConfBase
       val appArgs = AppArgs(args)
       val host: String = appArgs.host.toOption.get
-      val port: String = PortOperations.isPortAvailable(
-        appArgs.port.toOption.get.toInt
-      ).toString
+      val port: String = appArgs.port.toOption.get.toInt.toString
       ZIO.succeed((host, port))
     } catch {
       case e: Throwable => ZIO.fail(e)
     }
   }
 
-  //  val clientLayer: Layer[Throwable, ZioGrpcRemoteClient] = ZioGrpcRemoteClient.live(
-  //    ZManagedChannel(
-  //      ManagedChannelBuilder.forAddress("localhost", 9000).usePlaintext()
-  //    )
-  //  )
-
-  def clientSendMsgs: ZIO[Any, Throwable, Unit] =
+  def clientSendMsgs(prefix: String = "3") =
     for {
-      _ <- printLine("TO-DO Send msgs here")
+      f <- ZioClientMsgs.ZioGrpcRemoteClient.sendZioMsgTest1(ZioMsgTest1("hello", "scala", prefix))
+      _ <- printLine(f.msg)
+      r <- ZioClientMsgs.ZioGrpcRemoteClient.sendZioMsgTest2Array(ZioMsgTest2Array(Seq("hello", "scala", prefix)))
+      _ <- printLine(r.msg)
+      r <- ZioClientMsgs.ZioGrpcRemoteClient.sendZioMsgTest3Map(ZioMsgTest3Map(
+        Map("msg1" -> "hello", "msg2" -> "scala", "msg3" -> prefix)
+      ))
+      _ <- printLine(r.msg)
+      _ <- printLine(s"Sending shutdown to scala $prefix module")
+      _ <- ZioClientMsgs.ZioGrpcRemoteClient.sendShutDown(ShutDown())
+      _ <- printLine(r.msg)
     } yield ()
 
   override def run =
@@ -79,7 +42,7 @@ object ClientApp extends ZIOAppDefault {
       args <- getArgs
       clientLayer <- parseArgs(args.toList).map(
         a => {
-          println("host is " + a._1 + " port is " + a._2)
+          println("host of server is " + a._1 + " and port is " + a._2)
           ZioClientMsgs.ZioGrpcRemoteClient.live(
             ZManagedChannel(
               ManagedChannelBuilder.forAddress(a._1, a._2.toInt).usePlaintext()
@@ -87,13 +50,8 @@ object ClientApp extends ZIOAppDefault {
           )
         }
       )
-      _ <- clientSendMsgs.provideLayer(clientLayer).exitCode
+      _ <- clientSendMsgs().provideLayer(clientLayer).exitCode
     } yield ()
-
-
-  //  override def run() = myAppLogic.provideLayer(clientLayer).exitCode
-
-
 }
 
 case class AppArgs(arguments: Seq[String]) extends ScallopConf(arguments) {
