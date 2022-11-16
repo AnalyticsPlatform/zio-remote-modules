@@ -33,7 +33,7 @@ object CmdOperations {
         Process("cmd /c " + cmdWindows.get, path).run()
       } else {
         if cmdUnix.nonEmpty then
-          Process("bash -c " + cmdUnix.get, path).run()
+          Process("bash " + cmdUnix.get, path).run()
         else throw Exception("No cmd is provided")
       }
     } catch {

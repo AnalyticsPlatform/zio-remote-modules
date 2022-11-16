@@ -51,15 +51,18 @@ object ClientApp extends ZIOAppDefault {
       ZManagedChannel(
         ManagedChannelBuilder.forAddress(targetHost, targetPort).usePlaintext()
       )
-    ).retry(Schedule.fixed(10.seconds) || Schedule.recurs(5))
+//    ).retry(Schedule.fixed(10.seconds) && Schedule.recurs(5)).orDie
+    ).retry(Schedule.spaced(10.seconds))
   }
 
   override def run =
     (for {
       port1 <- PortOperations.isPortAvailable(0)
       processServerScala2_12 <- StartModuleServer("module-scala2_12", "0.0.0.0", port1)
+      _ <- ZIO.sleep(5.seconds)
       port2 <- PortOperations.isPortAvailable(0)
       processServerScala3 <- StartModuleServer("module-scala3", "0.0.0.0", port2)
+      _ <- ZIO.sleep(5.seconds)
       clientLayer2_12 <- ZIO.succeed(startClient("0.0.0.0", port1, "module-scala2_12"))
       clientLayer3 <- ZIO.succeed(startClient("0.0.0.0", port2, "module-scala3"))
       _ <- clientSendMsgs("2_12").provideLayer(clientLayer2_12)
